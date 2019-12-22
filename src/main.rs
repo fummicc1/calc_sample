@@ -1,54 +1,72 @@
-use std::env;
-use std::io;
-use std::convert::From;
-use std::num::ParseIntError;
+#[macro_use]
+extern crate conrod_core;
+extern crate conrod_glium;
+extern crate glium;
+
+use conrod_core::{ widget, color, Colorable, Borderable, Sizeable, Positionable, Labelable, Widget, UiBuilder };
+use glium::{ Surface, Display };
+use glium::glutin::{ EventsLoop, WindowBuilder, ContextBuilder, ControlFlow, Event };
+use conrod_glium::Renderer;
+
+widget_ids! (
+    struct Ids {
+        button,
+
+    }    
+);
+
+const Title: &'static str = "Calculator App";
+const WIDTH: u32 = 300;
+const HEIGHT: u32 = 300;
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    
-    let arg = &args.first().unwrap();
-    let value = parse_int(arg);
+    let mut event_loop = EventsLoop::new();
+    let window = WindowBuilder::new()
+    .with_title(Title)
+    .with_dimensions((WIDTH, HEIGHT).into());
 
-    if value.is_none() { 
-        let _value = get_input();
-    };
+    let context = ContextBuilder::new()
+    .with_vsync(true)
+    .with_multisampling(4);
+    let display = Display::new(window, context, &event_loop).unwrap();
+    let mut ui = UiBuilder::new([WIDTH as f64, HEIGHT as f64]).build();
 
-    let arg2 = &args.get(1).unwrap();
-    let value2 = parse_int(arg2);
+    let ids = &mut Ids::new(ui.widget_id_generator());
+    let renderer = Renderer::new(&display).unwrap();
 
+    let mut events: Vec<Event> = Vec::new();
 
-    println!("Inputs: {:?}", args);
-}
+    'render: loop {
+        events.clear();
 
-fn get_input() -> Option<i32> {
-    let text: String;
+        event_loop.poll_events( |event| {
+            events.push(event);
+        })
 
-    match io::stdin().read_line(&mut text) {
-        Ok(s) => {
-            let t = s.to_string()[..];
-            Some(parse_int(t).unwrap())
-        },
-        Err(error) => {
-            None
+        if events.is_empty() {
+            event_loop.run_forever( |event| {
+                events.push(event);
+                ControlFlow::Break
+            })
+        }
+
+        for event in events.drain(..) {
+            match event.clone() {
+                glium::glutin::Event::WindowEvent { event, .. } => {
+                    match event {
+                        glium::glutin::WindowEvent::CloseRequested | 
+                        glium::glutin::WindowEvent::KeyboardInput {
+                            input: glium::glutin::KeyboardInput {
+                                virtual_keycode: Some(glium::glutin::VirtualKeyCode::Escape),
+                                ..
+                            }
+                        } => break 'render,  
+                        _ => (),                      
+                    },
+                    _ => (),
+                },
+                _ => (),
+            }
         }
     }
-}
-
-// parse_int tells caller spcified error (ParseIntError)
-fn parse_int(number_str: &str) -> Option<i32> {
-    match number_str.parse::<i32>() {
-        Ok(number) => Some(number),
-        Err(err) => {
-            println!("error: {:?}", err);
-            None
-        },
-    }
-}
-
-fn increment(x: i32, y:i32) -> i32 {
-    x + y
-}
-
-fn subtract(x: i32, y: i32) -> i32 {
-    x - y
 }
